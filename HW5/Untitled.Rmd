@@ -1,0 +1,76 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+library(MASS)
+set.seed(10)
+n = 100
+p = 200
+
+# generate data
+V = matrix(0.3, p, p)
+diag(V) = 1
+X_org = as.matrix(mvrnorm(n, mu = rep(0, p), Sigma = V))
+true_b = c(1:3, -3:-1, rep(0, p-6))
+y_org = X_org %*% true_b + rnorm(n)
+
+# pre-scaling and centering X and y
+X = scale(X_org)*sqrt(n/(n-1))
+y = scale(y_org)*sqrt(n/(n-1))
+lambda = 0.3
+```
+
+
+```{r}
+library(glmnet)
+# glmnetfit use a different loss function. Use lambda / 2 as the penalty
+glmnetfit = glmnet(X, y, lambda = lambda / 2, intercept = FALSE)
+glmnetfit$beta[1:8]
+
+```
+
+
+
+
+```{r}
+glmnetfit = glmnet(X, y, intercept = FALSE)
+
+# Again, twice lambda is used for our function
+lambda_all = glmnetfit$lambda * 2
+
+# a matplot of the first 8 coefficients vs log scale of lambda
+matplot(log(lambda_all), t(glmnetfit$beta[1:8, ]), type = "l", lwd = 2, 
+        xlab = "Log Lambda",ylab = "Estimated Beta", main = "glmnet")
+legend("topleft", paste("beta", 1:8, "=", c(1:3, -3:-1, 0, 0)), 
+       col = 1:8, lty = 1:8, lwd = 2)
+
+df <- as.data.frame(as.matrix(glmnetfit$beta))
+write.csv(df, "glmfit_beta.csv")
+```
+
+```{r}
+glmnetfit2 = glmnet(X_org, y_org, lambda=lambda_all/2*sd(y_org)*sqrt(n/(n-1)))
+lassobeta2 = coef(glmnetfit2)[1:9, ]
+
+matplot(log(lambda_all), t(lassobeta2), type = "l", lwd = 2, 
+          xlab = "Log Lambda",ylab = "Estimated Beta", main = "glmnet unscaled")
+legend("topleft", paste("beta", 1:9), col = 1:9, lty = 1:9, lwd = 2)
+```
+
+
+
+
+
+
+
+
+
+
+
+

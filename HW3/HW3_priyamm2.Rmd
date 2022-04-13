@@ -1,0 +1,74 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
+
+b.  [20 Points] Model Selection Criterion. Use AIC and BIC criteria to select the best model and report the result from each of them. Use the forward selection for AIC and backward selection for BIC. Report the following mean squared error from **both training and testing data**. 
+
+    * The mean squared error: $n^{-1} \sum_{i}(Y_i - \widehat{Y}_i)^2$
+    * Since these quantities can be affected by scaling and transformation, make sure that you **state any modifications applied to the outcome variable**. Compare the training data errors and testing data errors. Which model works better? Provide a summary of your results. 
+```{r}
+### Load packages
+library(MASS)
+
+### Load Data
+training_data = read.csv("train_data.csv")
+testing_data = read.csv("test_data.csv")
+```
+
+
+```{r}
+model = lm(target_price~., data=training_data)
+AIC_model = step(model, direction="forward")
+
+y_pred_train <- predict(AIC_model, training_data)
+train_mse <- mean((training_data$target_price - y_pred_train)^2, na.rm=TRUE)
+
+y_pred_test <- predict(AIC_model, testing_data)
+test_mse <- mean((testing_data$target_price - y_pred_test)^ 2, na.rm=TRUE)
+
+print(paste("Training Error:", train_mse))
+print(paste("Testing Error:", test_mse))
+```
+
+```{r}
+BIC_model = step(model, direction="backward", k=log(nrow(training_data)))
+summary(BIC_model)
+
+y_pred_train <- predict(BIC_model, training_data)
+train_mse <- mean((training_data$target_price - y_pred_train)^2, na.rm=TRUE)
+
+y_pred_test <- predict(BIC_model, testing_data)
+test_mse <- mean((testing_data$target_price - y_pred_test)^ 2, na.rm=TRUE)
+
+print(paste("Training Error:", train_mse))
+print(paste("Testing Error:", test_mse))
+```
+
+From our predictions, we see that our training and testing errors are very high despite optimization with AIC and BIC variable selection. This is most likely because a linear model may not be the correct way to model such high variability time series data. For model improvement it would be better to start testing different model architectures such as Arima to take advantage of the time component of our data. Linear Regression prediction has no concept of moving averages and we are just using 3 days of data to predict the 7th, rather than looking at the general trends within the data.
+
+Alhough poor performance, we got better predictive ability with a slightly lower testing error wih our BIC Model
+
+
+c.  [10 Points] Best Subset Selection. Fit the best subset selection to the dataset and report the best model of each model size (up to 7 variables, excluding the intercept) and their prediction errors. Make sure that you simplify your output to only present the essential information. If the algorithm cannot handle this many variables, then consider using just day 1 and 2 information. You can use `leaps` package for subset selection.
+
+```{r}
+library(leaps)
+subset_model <- regsubsets(target_price~., data=training_data, nvmax=7)
+summary(subset_model)
+
+best_subset <- lm(target_price~X4_days_prev_btc_trade_volume+X4_days_prev_btc_n_orphaned_blocks+X4_days_prev_btc_transaction_fees+
+                    X5_days_prev_btc_n_orphaned_blocks+X6_days_prev_btc_n_orphaned_blocks+X6_days_prev_btc_transaction_fees, data=training_data)
+
+summary(best_subset)
+y_pred_train <- predict(best_subset, training_data)
+train_mse <- mean((training_data$target_price - y_pred_train)^2, na.rm=TRUE)
+
+y_pred_test <- predict(best_subset, testing_data)
+test_mse <- mean((testing_data$target_price - y_pred_test)^ 2, na.rm=TRUE)
+
+print(paste("Training Error:", train_mse))
+print(paste("Testing Error:", test_mse))
+```
+We see a similar trend here that we have a very large errors again for reasons similar to the previous problem. We can also see that some of our predictors have very high beta values, we could potentially get better results if we used regularization to stop overweighting on these values. 
